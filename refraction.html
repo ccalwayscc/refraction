@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { margin:0; overflow:hidden; background:#f0f8ff; }
+        canvas { display:block; margin:10px auto; background:white; box-shadow:0 0 5px rgba(0,0,0,0.2); }
+        .controls { text-align:center; padding:10px; }
+        button { padding:5px 10px; margin:0 5px; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <canvas id="refractionCanvas" width="600" height="400"></canvas>
+    <div class="controls">
+        <button onclick="changeAngle(-5)">减小角度</button>
+        <button onclick="changeAngle(5)">增大角度</button>
+        <button onclick="toggleMedia()">切换介质</button>
+        <button onclick="startAnimation()">播放动画</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('refractionCanvas');
+        const ctx = canvas.getContext('2d');
+        let angle = 30;
+        let n1 = 1.0, n2 = 1.5;
+        let isAnimating = false;
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerY = canvas.height/2;
+            
+            // 绘制界面和标注
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvas.width, centerY);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.fillText(`空气 (n=${n1.toFixed(1)})`, 20, centerY-15);
+            ctx.fillText(`水 (n=${n2.toFixed(1)})`, 20, centerY+30);
+            
+            // 计算折射角
+            const radianAngle = angle * Math.PI/180;
+            const sinRefract = (n1/n2) * Math.sin(radianAngle);
+            const canRefract = Math.abs(sinRefract) <= 1;
+            const refractAngle = canRefract ? Math.asin(sinRefract) : null;
+            
+            // 绘制光线
+            const length = 250;
+            const startX = canvas.width/2 - length*Math.cos(radianAngle);
+            const startY = centerY - length*Math.sin(radianAngle);
+            
+            // 入射光线
+            ctx.strokeStyle = '#E74C3C';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(canvas.width/2, centerY);
+            ctx.stroke();
+            
+            // 折射或反射光线
+            ctx.strokeStyle = canRefract ? '#3498DB' : '#E74C3C';
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, centerY);
+            if(canRefract) {
+                ctx.lineTo(canvas.width/2 + length*Math.cos(refractAngle), 
+                          centerY + length*Math.sin(refractAngle));
+            } else {
+                ctx.setLineDash([5,3]);
+                ctx.lineTo(startX, startY);
+                ctx.setLineDash([]);
+                ctx.fillText('全反射', canvas.width/2 + 20, centerY-20);
+            }
+            ctx.stroke();
+            
+            // 绘制角度标记
+            drawAngleMarker(canvas.width/2, centerY, angle, -1, '#E74C3C');
+            if(canRefract) {
+                drawAngleMarker(canvas.width/2, centerY, refractAngle*180/Math.PI, 1, '#3498DB');
+            }
+            
+            // 显示斯涅尔定律
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.fillText(`斯涅尔定律: n₁sinθ₁ = n₂sinθ₂`, 20, 30);
+            ctx.fillText(`当前: ${n1.toFixed(1)}×sin(${angle}°) = ${n2.toFixed(1)}×sin(${
+                canRefract ? (refractAngle*180/Math.PI).toFixed(1)+'°' : '无解'})`, 20, 60);
+        }
+        
+        function drawAngleMarker(x, y, angle, dir, color) {
+            const radius = 40;
+            const start = -Math.PI/2;
+            const end = start + dir*angle*Math.PI/180;
+            
+            ctx.strokeStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, start, end, dir < 0);
+            ctx.stroke();
+            
+            // 标记线
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + radius*Math.cos(start), y + radius*Math.sin(start));
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + radius*Math.cos(end), y + radius*Math.sin(end));
+            ctx.stroke();
+        }
+        
+        function changeAngle(delta) {
+            angle = Math.max(0, Math.min(89, angle + delta));
+            draw();
+        }
+        
+        function toggleMedia() {
+            if(n1 === 1.0) {
+                n1 = 1.5; n2 = 1.0; // 从水到空气
+            } else {
+                n1 = 1.0; n2 = 1.5; // 从空气到水
+            }
+            draw();
+        }
+        
+        function startAnimation() {
+            if(isAnimating) return;
+            isAnimating = true;
+            let startAngle = angle;
+            let targetAngle = angle > 45 ? 30 : 60;
+            
+            const animate = () => {
+                if(Math.abs(angle - targetAngle) < 0.5) {
+                    targetAngle = targetAngle > 45 ? 30 : 60;
+                }
+                angle += (targetAngle - angle) * 0.05;
+                draw();
+                if(isAnimating) requestAnimationFrame(animate);
+            };
+            animate();
+        }
+        
+        // 初始化
+        draw();
+    </script>
+</body>
+</html>
